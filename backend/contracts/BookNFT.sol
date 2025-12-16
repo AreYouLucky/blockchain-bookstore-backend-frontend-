@@ -7,90 +7,150 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract BookNFT is ERC721URIStorage, Ownable {
     uint256 public nextTokenID;
 
-    struct BookSale {
+    struct Book {
+        uint256 tokenId;
+        address owner;
         uint256 price;
         bool forSale;
+        string tokenURI;
     }
 
-    mapping(uint256 => BookSale) public bookSales;
+    mapping(uint256 => uint256) public bookPrices;
+    mapping(uint256 => bool) public isForSale;
 
-    event BookMinted(uint256 indexed tokenID, address indexed author, string metaData);
+    event BookMinted(
+        uint256 indexed tokenID,
+        address indexed author,
+        string metaData
+    );
     event BookListed(uint256 indexed tokenID, uint256 price);
-    event BookSold(uint256 indexed tokenID, address indexed buyer, uint256 price);
+    event BookSold(
+        uint256 indexed tokenID,
+        address indexed buyer,
+        uint256 price
+    );
 
     constructor() ERC721("BookNFT", "BOOK") Ownable(msg.sender) {}
 
-    function mintBook(address author, string memory metaDataURI) external onlyOwner {
+    function mintBook(
+        address author,
+        string memory metaDataURI
+    ) external onlyOwner {
         uint256 tokenID = nextTokenID;
+
         _safeMint(author, tokenID);
         _setTokenURI(tokenID, metaDataURI);
+        isForSale[tokenID] = false;
 
         emit BookMinted(tokenID, author, metaDataURI);
         nextTokenID++;
     }
 
-    function listBookForSale(uint256 tokenID, uint256 price) external {
-        require(ownerOf(tokenID) == msg.sender, "Not owner");
-        require(price > 0, "Price must be > 0");
+    function unlistBook(uint256 tokenId) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        require(isForSale[tokenId], "Book not listed");
 
-        bookSales[tokenID] = BookSale(price, true);
-        emit BookListed(tokenID, price);
+        isForSale[tokenId] = false;
+        bookPrices[tokenId] = 0;
     }
 
-    function buyBook(uint256 tokenID) external payable {
-        BookSale memory sale = bookSales[tokenID];
-        address seller = ownerOf(tokenID);
+    function sellBook(uint256 tokenId, uint256 price) external {
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+        require(price > 0, "Price must be > 0");
 
-        require(sale.forSale, "Not for sale");
-        require(msg.value == sale.price, "Incorrect ETH amount");
+        bookPrices[tokenId] = price;
+        isForSale[tokenId] = true;
+
+        emit BookListed(tokenId, price);
+    }
+
+    function buyBook(uint256 tokenId) external payable {
+        require(isForSale[tokenId], "Book not for sale");
+
+        uint256 price = bookPrices[tokenId];
+        address seller = ownerOf(tokenId);
+
+        require(msg.value == price, "Incorrect ETH sent");
         require(seller != msg.sender, "Cannot buy your own book");
-
-        bookSales[tokenID].forSale = false;
-
-        _transfer(seller, msg.sender, tokenID);
 
         (bool success, ) = payable(seller).call{value: msg.value}("");
         require(success, "ETH transfer failed");
+        _transfer(seller, msg.sender, tokenId);
+        isForSale[tokenId] = false;
+        bookPrices[tokenId] = 0;
 
-        emit BookSold(tokenID, msg.sender, msg.value);
+        emit BookSold(tokenId, msg.sender, price);
     }
 
-    function getBooksForSale() external view returns (uint256[] memory) {
-        uint256 count;
-        for (uint256 i = 0; i < nextTokenID; i++) {
-            if (bookSales[i].forSale) count++;
-        }
-
-        uint256[] memory result = new uint256[](count);
-        uint256 index;
+    function getAllBooks() external view returns (Book[] memory) {
+        Book[] memory books = new Book[](nextTokenID);
 
         for (uint256 i = 0; i < nextTokenID; i++) {
-            if (bookSales[i].forSale) {
-                result[index++] = i;
+            books[i] = Book({
+                tokenId: i,
+                owner: ownerOf(i),
+                price: bookPrices[i],
+                forSale: isForSale[i],
+                tokenURI: tokenURI(i)
+            });
+        }
+
+        return books;
+    }
+
+    function getOwnedBooks(address user) external view returns (Book[] memory) {
+        uint256 count = 0;
+
+        for (uint256 i = 0; i < nextTokenID; i++) {
+            if (ownerOf(i) == user) {
+                count++;
             }
         }
-        return result;
-    }
 
-    function getBooksOwnedBy(address bookOwner) public view returns (uint256[] memory) {
-        uint256 bal = balanceOf(bookOwner);
-        uint256[] memory result = new uint256[](bal);
+        Book[] memory books = new Book[](count);
+        uint256 index = 0;
 
-        uint256 index;
-        for (uint256 tokenId = 0; tokenId < nextTokenID; tokenId++) {
-            if (_ownerOf(tokenId) == bookOwner) {
-                result[index++] = tokenId;
-                if (index == bal) break; 
+        for (uint256 i = 0; i < nextTokenID; i++) {
+            if (ownerOf(i) == user) {
+                books[index] = Book({
+                    tokenId: i,
+                    owner: user,
+                    price: bookPrices[i],
+                    forSale: isForSale[i],
+                    tokenURI: tokenURI(i)
+                });
+                index++;
             }
         }
-        return result;
+
+        return books;
     }
 
-    function getMyBooks() external view returns (uint256[] memory) {
-        return getBooksOwnedBy(msg.sender);
-    }
+    function getBooksForSale() external view returns (Book[] memory) {
+        uint256 count = 0;
 
-    function getBooksOwnedByContractOwner() external view returns (uint256[] memory) {
-        return getBooksOwnedBy(owner());
+        for (uint256 i = 0; i < nextTokenID; i++) {
+            if (isForSale[i]) {
+                count++;
+            }
+        }
+
+        Book[] memory books = new Book[](count);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < nextTokenID; i++) {
+            if (isForSale[i]) {
+                books[index] = Book({
+                    tokenId: i,
+                    owner: ownerOf(i),
+                    price: bookPrices[i],
+                    forSale: true,
+                    tokenURI: tokenURI(i)
+                });
+                index++;
+            }
+        }
+
+        return books;
     }
 }

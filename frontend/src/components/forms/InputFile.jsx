@@ -8,7 +8,7 @@ const InputFile = ({
   title = "",
   subtitle = "",
   id,
-  onChange,          // ✅ take parent's onChange explicitly
+  onChange,        
   ...rest
 }) => {
   const autoId = useId();
@@ -17,8 +17,6 @@ const InputFile = ({
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-
-  // ✅ cleanup object URL to avoid memory leaks
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
@@ -29,7 +27,6 @@ const InputFile = ({
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    // revoke old preview (if any)
     if (preview) URL.revokeObjectURL(preview);
 
     setFile(selected);
@@ -43,12 +40,7 @@ const InputFile = ({
     } else {
       setPreview(null);
     }
-
-    // ✅ call parent handler AFTER we update preview
     onChange?.(e);
-
-    // ✅ optional: allow selecting the same file again
-    // e.target.value = "";
   };
 
   const isPDF =
@@ -86,19 +78,19 @@ const InputFile = ({
 
             {!preview && !isPDF && <FaFileAlt size={50} />}
 
-            <p className="mt-2 text-sm font-semibold text-center text-gray-800">
+            <p className="mt-2 text-[9px] font-semibold text-center text-gray-800">
               {file.name}
             </p>
-            <p className="text-xs text-gray-400">{subtitle}</p>
+            <p className="text-[9px] text-gray-400">{subtitle}</p>
           </div>
         )}
 
         <FileInput
-          id={inputId}              // ✅ unique per component
+          id={inputId}             
           ref={fileInputRef}
           className="hidden"
-          {...rest}                 // ✅ spread first
-          onChange={handleChange}   // ✅ then force our handler
+          {...rest}               
+          onChange={handleChange}   
         />
       </Label>
     </div>
