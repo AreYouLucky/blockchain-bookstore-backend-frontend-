@@ -17,7 +17,7 @@ export default function PriceForm({ open, price, setPrice, onClose, onConfirm })
                         id="price"
                         type="text"
                         name="price"
-                        value={price || 0}
+                        value={price}
                         className="mt-1 w-full"
                         autoComplete="off"
                         onChange={handleChange}

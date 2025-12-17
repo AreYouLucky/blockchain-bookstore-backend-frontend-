@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Auth from "./pages/auth/Auth";
 import BookSaleList from "./pages/sale/BookSaleList";
 import OwnedBooks from "./pages/owned/OwnedBooks";
+import About from "./pages/about/About";
 
 export default function App() {
   const account = localStorage.getItem("walletAddress");
@@ -19,6 +20,10 @@ export default function App() {
       <Route
         path="/owned-books"
         element={account ? <OwnedBooks /> : <Navigate to="/auth" />}
+      />
+      <Route
+        path="/about"
+        element={account ? <About /> : <Navigate to="/auth" />}
       />
     </Routes>
   );

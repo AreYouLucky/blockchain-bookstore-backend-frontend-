@@ -29,7 +29,7 @@ export default function BookCard({ book, children }) {
         <p className="text-[13px] text-body mb-2">{metadata.genre}</p>
         {forSale &&
           <div className="flex items-center justify-between gap-5">
-            <span className="text-heading font-semibold text-yellow-600">
+            <span className="text-sm font-semibold text-yellow-600">
               {priceWei > 0 ? priceWei : 0} WEI
             </span>
           </div>

@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import BookForm from "./partials/BookForm";
 import { getReadContract, getWriteContract } from "../../services/ether";
 import { ethers } from "ethers";
+import { Spinner } from "../../components/displays/Spinner";
+import { FaBookBookmark } from "react-icons/fa6";
+import { FaEye } from "react-icons/fa";
 
 export default function BookSaleList() {
-    const [open, setOpen] = useState(false);
     const [books, setBooks] = useState([]);
-
+    const [loading, setLoading] = useState(false)
     const [account, setAccount] = useState("");
 
     useEffect(() => {
@@ -75,23 +77,28 @@ export default function BookSaleList() {
 
     const unlistBook = async (tokenId) => {
         try {
+            setLoading(true)
             const contract = await getWriteContract();
             const tx = await contract.unlistBook(BigInt(tokenId));
             await tx.wait();
 
             alert("Book Successfully Unlisted");
             await loadListedBooks();
+            setLoading(false)
         } catch (e) {
             console.error(e);
             alert(e?.shortMessage || e?.message || "Unlist failed");
+            setLoading(false)
         }
     };
 
     const buyBook = async (tokenId, priceWei) => {
+        setLoading(true)
         const contract = await getWriteContract();
         const tx = await contract.buyBook(BigInt(tokenId), { value: BigInt(priceWei) });
         await tx.wait();
         await loadListedBooks();
+        setLoading(false)
     };
 
     const viewBook = (pdf) => window.open(`https://dweb.link/ipfs/${pdf}`, "_blank");
@@ -100,20 +107,12 @@ export default function BookSaleList() {
         loadListedBooks();
     }, []);
 
-    const onClose = () => {
-        setOpen(false);
-        loadListedBooks();
-    };
+
 
     return (
         <AuthenticatedLayout>
             <div className="border py-4 px-6 rounded-lg border-gray-200 text-gray-50 font-bold grid grid-cols-2 shadow-xs bg-[#00aeef]">
                 <div className="flex items-center text-lg">Book Selections</div>
-                <div className="flex items-center justify-end">
-                    <Button className="bg-[#00aeef] text-white" onClick={() => setOpen(true)}>
-                        Add Listing
-                    </Button>
-                </div>
             </div>
 
             <div className="grid grid-cols-3 gap-5 p-5">
@@ -126,23 +125,26 @@ export default function BookSaleList() {
                         {isOwner(book.owner) && (
                             <Button
                                 onClick={() => viewBook(book.metadata.file)}
-                                className="border-gray-200 bg-[#00aeef] text-white"
+                                className="border-gray-200 bg-[#00aeef] text-white flex items-center"
                             >
+                                <FaEye className="mr-2" />
                                 View
                             </Button>
                         )}
 
                         <Button
                             onClick={() => (isOwner(book.owner) ? unlistBook(book.tokenId) : buyBook(book.tokenId, book.priceWei))}
-                            className="border-gray-200 text-white bg-amber-600"
+                            className="border-gray-200 text-white bg-amber-600 flex items-center" disabled={loading}
                         >
+                            <FaBookBookmark className="mr-2" />
                             {isOwner(book.owner) ? "Unlist" : "Buy"}
+                            {loading && <Spinner />}
                         </Button>
                     </BookCard>
                 ))}
             </div>
 
-            <BookForm open={open} onClose={onClose} />
+
         </AuthenticatedLayout>
     );
 }
